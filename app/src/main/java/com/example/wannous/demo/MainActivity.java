@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String ImageString;
 
 
-    TextView mTextView;
+    TextView mTextView; 
     RequestQueue queue;
     JSONObject jsonObj;
     ImageView imageView;
