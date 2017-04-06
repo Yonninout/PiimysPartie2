@@ -26,12 +26,16 @@ public class Brand {
     private String classifieur;
     private String[] images;
     private RequestQueue queue;
-    private final String urlClassifieur = "http://www-rech.telecom-lille.fr/nonfreesift/classifiers/";
+    private final String urlClassifieurSoda  = "http://www-rech.telecom-lille.fr/nonfreesift/classifiers/";
+    private final String urlClassifieurVoiture = "http://www-rech.telecom-lille.fr/freeorb/classifiers/";
 
-    public Brand(String brandName, String url, String classifieur, String[] images, RequestQueue queue, Context context) {
+    //contructeur de la classe
+
+    public Brand(String brandName, String url, String classifieur, String[] images, RequestQueue queue, Context context, int choix) {
         //Setting value fron JSON file
+
         this.brandName = brandName;
-        this.url = url;
+        this.url = choix == 1 ? urlClassifieurSoda : urlClassifieurVoiture ;
         this.classifieurName = classifieur;
         this.images = images;
 
@@ -40,11 +44,12 @@ public class Brand {
         this.context = context;
 
         //getting value from request
-        getClassifieurFromServer(classifieur);
+        getClassifieurFromServer(classifieur, choix);
     }
 
-    public void getClassifieurFromServer(String classifieur){
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, urlClassifieur + classifieurName,
+    //méthode utilisée pour récupérer l'ensemble des classifieur contenu sur le serveur de TL
+    public void getClassifieurFromServer(String classifieur, int choix){
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, this.url + classifieurName,
             new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
@@ -65,6 +70,8 @@ public class Brand {
         stringToCache(response, classifieurName);
     }
 
+    //utilisé pour enrigistré une string dans le cache 'contenu d'un fichier texte) afin de pouvoirs'en reservir dans d'autre classe
+    // les données étant en cache et accessible via le nom donné
     public File stringToCache(String string, String fileName) {
         File file = new File(context.getCacheDir(), fileName);
         try {
@@ -84,6 +91,8 @@ public class Brand {
             return null;
         }
     }
+
+    //getter et setter
 
     public String getBrandName() {
         return brandName;

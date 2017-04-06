@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String ImageString;
 
 
-    TextView mTextView; 
+    TextView mTextView;
     RequestQueue queue;
     JSONObject jsonObj;
     ImageView imageView;
@@ -83,10 +83,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static String dictionary;
 
     private static final String jsonFilename = "index.json";
-    private static final String url = "http://www-rech.telecom-lille.fr/nonfreesift/";
+    private static String url = new String();
+    private static String urlSoda = "http://www-rech.telecom-lille.fr/nonfreesift/";
+    private static String urlVoiture = "http://www-rech.telecom-lille.fr/freeorb/";
 
 
+    private final int choix = 1;
     private String filePath;
+    int classNumber;
+    String[] class_names;
 
 
     protected boolean shouldAskPermissions() {
@@ -134,7 +139,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             public void run() {
-                getJSONFiles();
+                switch (choix){
+                    case 1:
+                        url = urlSoda;
+                        break;
+                    case 2:
+                        url = urlVoiture;
+                        break;
+                }
+                getJSONFiles(url);
             }
         }, 2000);
 
@@ -172,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.Photo:
                 dispatchTakePictureIntent();
                 break;
-
+            //charge les différent fichier nécessaire à l'analyse comme le vocabulaire
             case R.id.Analyse:
                 final opencv_core.Mat vocabulary;
 
@@ -183,6 +196,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Pointer p = opencv_core.cvReadByName(storage, null, "vocabulary", opencv_core.cvAttrList());
                 opencv_core.CvMat cvMat = new opencv_core.CvMat(p);
                 vocabulary = new opencv_core.Mat(cvMat);
+                System.out.println(vocabulary.toString());
                 System.out.println("vocabulary loaded " + vocabulary.rows() + " x " + vocabulary.cols());
                 opencv_core.cvReleaseFileStorage(storage);
 
@@ -205,15 +219,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 System.out.println("Vocab is set");
 
 
-                int classNumber = 3;
-                String[] class_names;
-                class_names = new String[classNumber];
 
-                class_names[0] = "Coca";
-                class_names[1] = "Pepsi";
-                class_names[2] = "Sprite";
+                if (choix == 1) {
+                    //reconnaissance des soda
+                    classNumber = 3;
+                    class_names = new String[classNumber];
 
+                    class_names[0] = "Coca";
+                    class_names[1] = "Pepsi";
+                    class_names[2] = "Sprite";
+                }else if (choix == 2) {
+                    //reconnaissance des Voitures
+                    classNumber = 6;
+                    class_names = new String[classNumber];
 
+                    class_names[0] = "Alpha Romeo";
+                    class_names[1] = "Audi";
+                    class_names[2] = "BMW";
+                    class_names[3] = "Ferrari";
+                    class_names[4] = "Skoda";
+                    class_names[5] = "Toyota";
+                }
+
+                //Charge dans le cache les différent classifieur précédemment télécharger sur le serveur et enregistrés
                 final opencv_ml.CvSVM[] classifiers;
                 classifiers = new opencv_ml.CvSVM[classNumber];
                 for (int i = 0; i < classNumber; i++) {
@@ -222,9 +250,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     classifiers[i] = new opencv_ml.CvSVM();
                     classifiers[i].load(getCacheDir() + "/" + class_names[i] + ".xml");
                 }
-                //for (int i =0; i<3; i++){
-                //    System.out.println(classifiers[i].toString());
-                //}
+
 
                 opencv_core.Mat response_hist = new opencv_core.Mat();
                 KeyPoint keypoints = new KeyPoint();
@@ -242,7 +268,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 long timePrediction = System.currentTimeMillis();
 
                 // loop for all classes
-                for (int j = 0; j < 3; j++) {
+                for (int j = 0; j < classNumber; j++) {
                     // classifier prediction based on reconstructed histogram
                     float res = classifiers[j].predict(response_hist, true);
                     if (res < minf) {
@@ -255,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Toast.makeText(this, "Analysis "+ filePath + "  predicted as " + bestMatch + " in " + timePrediction + " ms", Toast.LENGTH_SHORT).show();
                 Log.d("Analysis", filePath + "  predicted as " + bestMatch + " in " + timePrediction + " ms");
                 break;
-
+            //open an intent to select an image from gallery
             case R.id.Galley:
                 Log.i("Gallery button", "User clicked the gallery Button");
                 //gal.loadImagefromGallery();
@@ -271,7 +297,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    public void getJSONFiles() {
+    public void getJSONFiles(String urlChoosen) {
 
         JsonObjectRequest jsonRequest = new JsonObjectRequest(Request.Method.GET, url + jsonFilename, null,
                 new Response.Listener<JSONObject>() {
@@ -286,6 +312,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                         public void onResponse(String response) {
                                             Log.i("DICTIONARY", dictionaryName + " DONE");
                                             //saveDictionnary(response);
+                                            //System.out.println(response);
                                             stringToCache(response, "vocabulary.yml");
                                         }
                                     },
@@ -327,7 +354,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         );
         queue.add(jsonRequest);
     }
-
+    //use to save the yml file
     public void saveDictionnary(String response) throws IOException {
         File file = new File(getCacheDir() + File.separator + "vocabulary.yml");
         //long fileSize = file.length();
@@ -339,6 +366,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         fout.close();
     }
 
+    //create a Brand Object from the data register in the JSON File
     public Brand createBrand(JSONObject brand, String[] images, RequestQueue queue) throws JSONException {
         Brand brandItem = new Brand(
                 brand.getString("brandname"),
@@ -346,7 +374,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 brand.getString("classifier"),
                 images,
                 queue,
-                this
+                this,
+                choix
         );
         return brandItem;
     }
@@ -371,6 +400,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    // Utilisée pour enregistré un fichier dans le cache (permettant de contourner les problème d'annalyse d'image de different format avec JavaCV
     public static File ToCache(Context context, String Path, String fileName) {
         InputStream input;
         FileOutputStream output;
@@ -395,7 +425,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return null;
         }
     }
-
+    //Affichage d'une image dans l'image view de la main view
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // Ensure that there's a camera activity to handle the intent
@@ -417,7 +447,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     }
-
+    // Use to save the picture taken from the application by the user.
     private File createImageFile() throws IOException {
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -432,7 +462,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return image;
     }
 
-
+    //Sur le retour d'une activité lancer par la main activity
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         try {
